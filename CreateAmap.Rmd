@@ -15,15 +15,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Lorsque l'on fait des analyses avec comme base de comparaisons des entités géographiques (pays, régions etc...) la représentation des résultats sous forme de carte est plus pertinente.
 
-Pour se besoin nous allons donc voir ici comment créer une carte avec R avec différents packages.
+Pour se besoin nous allons donc voir ici comment créer une carte avec R avec le package raster.
 
 Plusieurs packages existent pour créer des cartes (ggmap, ggmap2, map)
 
 2 types de cartes différentes
- - Vectoriel
- - Raster
-
-Système de projection
+ - Vectorielle (composé d'élements géographique)
+ - Raster (images) 
 
 ## LE PACKAGE RASTER
 ### INSTALLATION DES PACKAGES
@@ -58,11 +56,10 @@ L'argument "name" peut prendre les valeurs suivantes :
   - GADM
   - worldclim
   - SRTM
-  - countries
   
 Si le nom "alt" ou "GADM" est utilisé il faut également donner un argument "country".
 
-Nous allons utiliser d'abord GADM pour générer les contour du pays, à noter que l'argument country utilse le code ISO (3 lettres) du pays comme expliquer sur le site gis-blog (@Martin)
+Nous allons utiliser d'abord GADM pour générer les contour du pays, à noter que l'argument country utilse le code ISO (3 lettres) du pays comme expliquer sur le site gis-blog @Martin
 Nous pouvons consulter la liste des codes avec la fonction ccodes()
 
 ```{r eval=FALSE, include=FALSE}
@@ -121,7 +118,7 @@ On constate que la zone est trop large, on va donc utiliser la fonction "crop" p
 Dans l'argument extent nous allons spécifier dans cet ordre, latitude minimale, latitude maximale, longitude minimale et longitude maximale.
 
 ```{r}
-maCarteCrop <- crop(maCarteMerge, extent(-10,0,54,62))
+maCarteCrop <- crop(maCarteMerge, extent(-10,0,54,60))
 plot(maCarteCrop, main="Ma Carte Cropped")
 plot(maCarte, add=TRUE)
 ```
@@ -131,9 +128,9 @@ plot(maCarte, add=TRUE)
 Pour finir nous souhaitons ajouter des points d'intêret, par exemple des villes.
 Le fonctionnement est globalement le même que pour les données topographiques (SRTM), ce qui signifie que nous aurons besoin des coordonnées des villes.
 
-Pour ajouter les points on utilise la fonction point de R, les 2 premiers argumennts dans l'exemple ci-dessous sont les coordonnées, "pch" c'est la forme du point (@Points), "col" la couleur du contour et "bg" la couleur de remplissage.
+Pour ajouter les points on utilise la fonction point de R, les 2 premiers argumennts dans l'exemple ci-dessous sont les coordonnées, "pch" c'est la forme du point @Points, "col" la couleur du contour et "bg" la couleur de remplissage.
 
-Pour ajouter les textes, on utilise la fonction text de R, ici on utilise les mêmes coordonnées pour la longitude et lattitude car on souhaite que le texte soit au dessus du point créé, "cex" c'est un facteur entre 0 et 1 de la taille finale des caractères, pos c'est ce qui nous permet de décaler le texte au desssus.
+Pour ajouter les textes, on utilise la fonction text de R, ici on utilise les mêmes coordonnées pour la longitude et latitude car on souhaite que le texte soit au dessus du point créé, "cex" c'est un facteur entre 0 et 1 de la taille finale des caractères, pos c'est ce qui nous permet de décaler le texte au desssus. Pour en savoir plus sur la fonction on peut consutler @Texte.
 
 ```{r}
 plot(maCarteCrop, main="Ma Carte Cropped")
