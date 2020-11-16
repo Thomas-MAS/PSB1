@@ -1,17 +1,21 @@
 ---
-title: "Create a map"
-author: "T.M"
+title: "Créer une carte avec le package RASTER"
+author: "Thomas MASSÉ"
 date: "10/11/2020"
-bibliography: biblio.bib
 output:
-  html_document: default
+  pdf_document: default
+  html_document:
+    css: monStyle.css
+bibliography: biblio.bib
 ---
+
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## INTRODUCTION
+### INTRODUCTION
 
 Lorsque l'on fait des analyses avec comme base de comparaisons des entités géographiques (pays, régions etc...) la représentation des résultats sous forme de carte est plus pertinente.
 
@@ -23,25 +27,25 @@ Plusieurs packages existent pour créer des cartes (ggmap, ggplot2, tmap, etc...
  - **Vectorielle** (composé d'élements géographique)  
  - **Raster** (images) 
 
-## LE PACKAGE RASTER
-### INSTALLATION DES PACKAGES
+### LE PACKAGE RASTER
+##### INSTALLATION DES PACKAGES
 
 La première étape consiste à installer le package, il faut également définir un répertoire de travail, dans lequel les jeux de données seront téléchargés.
 
-```{r install, results=FALSE, message=FALSE}
+```{r message=FALSE, warning=FALSE, class.source="watch-out", paged.print=TRUE, results=FALSE}
 install.packages("raster", repos = "http://cran.us.r-project.org")
 install.packages("rgdal", repos = "http://cran.us.r-project.org")
 install.packages("RCurl", repos = "http://cran.us.r-project.org")
 #Définition du répertoire de travail
 #setwd("C:/R/Maps")
 ```
-```{r, message=FALSE}
+```{r, message=FALSE, class.source="watch-out"}
 library(raster)
 library(rgdal)
 library(RCurl)
 ```
 
-### LA FONCTION GETDATA
+##### LA FONCTION GETDATA
 
 Ensuite nous allons charger une carte, pour cela il est nécessaire de comprendre la fonction **getData**. Comme expliqué dans la documentation R du package (@RDoc)
 
@@ -63,17 +67,17 @@ Si le nom "**alt**" ou "**GADM**" est utilisé il faut également donner un argu
 Nous allons utiliser d'abord **GADM** pour générer les contour du pays, à noter que l'argument country utilse le code ISO (3 lettres) du pays comme expliquer sur le site gis-blog @Martin
 Nous pouvons consulter la liste des codes avec la fonction ccodes()
 
-```{r eval=FALSE}
+```{r class.source="watch-out", eval=FALSE}
 ccodes()
 ```
-### CREATION DE LA CARTE DES CONTOURS
+##### CREATION DE LA CARTE DES CONTOURS
 
-```{r}
+```{r class.source="watch-out", fig.align = 'center'}
 if (url.exists("https://biogeo.ucdavis.edu/data/gadm3.6/Rsp/gadm36_GBR_0_sp.rds")){
   maCarte <- getData(name="GADM", country="GBR", level=0)
   plot(maCarte, main="Carte de la Grande Bretagne")
 }else{
-  print("L'addresse est momentanément indisponible, la carte ne sera pas affiché. Veuillez rééssayer ultérieurement")
+  print("L'addresse est momentanément indisponible, la carte ne sera pas affichée. Veuillez rééssayer ultérieurement")
 }  
 ```
 
@@ -81,20 +85,20 @@ L'argument **level** permet d'affiner l'affichage des démarcations géographiqu
 Dans notre cas ici augmenter de 1 le niveau nous permettra de voir les frontières entre Angleterre, Pays de Galles, Ecosse et Irlande.  
 Tandis qu'un level à 2 nous permettra de voir les provinces (ex: Aberdeenshire)
 
-```{r}
+```{r class.source="watch-out", fig.align = 'center'}
 maCarte <- getData(name="GADM", country="GBR", level=1)
 plot(maCarte, main="Carte de la Grande Bretagne")
 ```
 
-### CREATION DE LA CARTE TOPOGRAPHIQUE
+##### CREATION DE LA CARTE TOPOGRAPHIQUE
 
-Nous allons désormais nous intéresser à SRTM pour ajouter des données topographiques à notre carte.  
+Nous allons désormais nous intéresser à **SRTM** pour ajouter des données topographiques à notre carte.  
 Le jeu de données **SRTM** utilise les longitudes et latitude pour identifier les dalles.  
 Cette information est facilement trouvable sur internet (wikipedia par exemple)
 On va cibler une zone plus petite, l'Ecosse.
 
 
-```{r}
+```{r class.source="watch-out", fig.align = 'center'}
 maCarteSRTM <- getData("SRTM", lon=-2, lat=57)
 plot(maCarteSRTM, main="Ma Carte de l'Ecosse")
 plot(maCarte, add=TRUE)
@@ -102,30 +106,35 @@ plot(maCarte, add=TRUE)
 
 Si la dalle affiché n'est pas assez grande on peut en ajouter.
 
-```{r}
+```{r class.source="watch-out"}
 maCarteSRTM2 <- getData("SRTM", lon=-8, lat=57)
 maCarteSRTM3 <- getData("SRTM", lon=-2, lat=53)
 maCarteSRTM4 <- getData("SRTM", lon=-8, lat=53)
 ```
 
-Ensuite on assemble les dalles ensemble pour faire une carte. On va utiliser ici la fonction **mosaic**.
+Ensuite on assemble les dalles ensemble pour faire une carte. On va utiliser ici la fonction **mosaic**.  
+Dans la fonction mosaic les arguments sont les différentes cartes et un argument **fun**.  
+Cet argument est une **fun**ction a appliquer pour les parties supperposées, il peut prendre la valeur *min*, *max*, ou *mean*.
 
-```{r}
+```{r class.source="watch-out", fig.align = 'center'}
 maCarteMerge <- mosaic(maCarteSRTM, maCarteSRTM2, maCarteSRTM3, maCarteSRTM4, fun=mean)
 plot(maCarteMerge, main="Ma Carte Merge")
 plot(maCarte, add=TRUE)
 ```
 
-On constate que la zone est trop large, on va donc utiliser la fonction **crop** pour redéfinir la zone.  
-Dans l'argument extent nous allons spécifier dans cet ordre, latitude minimale, latitude maximale, longitude minimale et longitude maximale.
+A noter qu'il existe d'autres méthodes d'aggrégation que l'on peut consulter ici https://cran.r-project.org/web/packages/raster/raster.pdf à la page 8.  
+Il y a par exemple la fonction **merge**, **trim**, ou **aggregate**.
 
-```{r}
+Mais également la fonction **crop** que l'on va utiliser ici car on constate que la zone est trop large, on va donc utiliser la fonction **crop** pour redéfinir la zone.  
+Dans l'argument *extent* nous allons spécifier dans cet ordre, latitude minimale, latitude maximale, longitude minimale et longitude maximale.
+
+```{r class.source="watch-out", fig.align = 'center'}
 maCarteCrop <- crop(maCarteMerge, extent(-10,0,54,60))
 plot(maCarteCrop, main="Ma Carte Cropped")
 plot(maCarte, add=TRUE)
 ```
 
-### AJOUTS DE POI (POINTS D'INTERETS)
+##### AJOUTS DE POI (POINTS D'INTERETS)
 
 Pour finir nous souhaitons ajouter des points d'intêret, par exemple des villes.  
 Le fonctionnement est globalement le même que pour les données topographiques (**SRTM**), ce qui signifie que nous aurons besoin des coordonnées des villes.
@@ -134,7 +143,7 @@ Pour ajouter les points on utilise la fonction point de R, les 2 premiers argume
 
 Pour ajouter les textes, on utilise la fonction text de R, ici on utilise les mêmes coordonnées pour la longitude et latitude car on souhaite que le texte soit au dessus du point créé, *cex* c'est un facteur entre 0 et 1 de la taille finale des caractères, *pos* c'est ce qui nous permet de décaler le texte au desssus. Pour en savoir plus sur la fonction on peut consutler @Texte.
 
-```{r}
+```{r class.source="watch-out", fig.align = 'center'}
 plot(maCarteCrop, main="Ma Carte Cropped")
 plot(maCarte, add=TRUE)
 points(-2.1, 57.1, pch=21, col="black", bg="red")
@@ -143,7 +152,7 @@ text(-2.1, 57.1, labels="Aberdeen", cex=1, pos=3)
 
 A noter que l'on peut également ajouter plusieurs points en même temps à l'aide de **vecteurs**.
 
-```{r}
+```{r class.source="watch-out", fig.align = 'center'}
 plot(maCarteCrop, main="Ma Carte Cropped")
 plot(maCarte, add=TRUE)
 
@@ -152,9 +161,12 @@ p.lat <- c(57.1, 55.95)
 p.lbl <- c("Aberdeen", "Edinburgh")
   
 points(p.lon, p.lat, pch=21, col="black", bg="red")
-text(p.lon, p.lat, labels=p.lbl, cex=1, pos=3)
+text(p.lon, p.lat, labels=p.lbl, cex=.8, pos=3)
+
+points(-4.25, 55.8, pch=22, col="black", bg="blue")
+text(-4.25, 55.8, labels="Glasgow", cex=1, pos=1)
 ```
 
-# REFERENCES
+### REFERENCES
 
 
