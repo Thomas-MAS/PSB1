@@ -1,0 +1,55 @@
+body{
+     font-family: Verdana;
+     font-size: 12pt;
+     text-align: justify;
+     background-color: #ffd5cc;
+}
+/* Headers */
+h1{
+     font-size: 32pt;
+     font-family: Impact, Charcoal, sans-serif;
+     text-align: center;
+     background: -webkit-linear-gradient(#cb391a, #7c5047);
+     color: white;
+}
+h2{
+     font-size: 24pt;
+     font-family: Impact, Charcoal, sans-serif;
+     text-align: center;
+     color: red;
+}
+h3{
+     font-size: 24pt;
+     font-family: Impact, Charcoal, sans-serif;
+     text-align: center;
+     background: -webkit-linear-gradient(#cb391a, #7c5047);
+     color: white;
+}
+h4{
+     font-size: 8pt;
+     font-family: "Lucida Console", Monaco, monospace;
+     text-align: right;
+     color: white;
+}
+h5{
+     font-size: 22pt;
+     font-family: Impact, Charcoal, sans-serif;
+     text-align: center;
+     background: -webkit-linear-gradient(#cb391a, #7c5047);
+     color: white;
+}
+.gradient-text {
+    background-color: #cb391a;
+    background-image: linear-gradient(45deg, #cb391a, #7c5047);
+    background-size: 100%;
+    -webkit-background-clip: text;
+    -moz-background-clip: text;
+    -webkit-text-fill-color: transparent; 
+    -moz-text-fill-color: transparent;
+}
+.watch-out {
+  background-color: #eec3ba;
+  color: white;
+  border: 3px solid #7c5047;
+  font-weight: bold;
+}
