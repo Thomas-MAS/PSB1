@@ -3,9 +3,9 @@ title: "Créer une carte avec le package RASTER"
 author: "Thomas MASSÉ"
 date: "10/11/2020"
 output:
-  pdf_document: default
   html_document:
     css: monStyle.css
+  pdf_document: default
 bibliography: biblio.bib
 ---
 
@@ -70,6 +70,29 @@ Nous pouvons consulter la liste des codes avec la fonction ccodes()
 ```{r class.source="watch-out", eval=FALSE}
 ccodes()
 ```
+
+##### LES DIFFERENTES CARTES
+
+```{r}
+maCarteAlt <- getData(name="alt", country="GBR")
+plot(maCarteAlt, main="Carte alt")
+```
+
+```{r}
+maCarteGadm <- getData(name="GADM", country="GBR", level=1)
+plot(maCarteGadm, main="Carte GADM")
+```
+
+```{r}
+maCarteWorldclim <- getData('worldclim', var='tmin', res=0.5, lon=0, lat=55)
+plot(maCarteWorldclim, main="Carte Worldclim")
+```
+
+```{r}
+maCarteSrtm <- getData("SRTM", lon=-2, lat=57)
+plot(maCarteSrtm, main="Carte SRTM")
+```
+
 ##### CREATION DE LA CARTE DES CONTOURS
 
 ```{r class.source="watch-out", fig.align = 'center'}
@@ -81,13 +104,70 @@ if (url.exists("https://biogeo.ucdavis.edu/data/gadm3.6/Rsp/gadm36_GBR_0_sp.rds"
 }  
 ```
 
+###### L'ARGUMENT LEVEL
+
 L'argument **level** permet d'affiner l'affichage des démarcations géographiques.  
 Dans notre cas ici augmenter de 1 le niveau nous permettra de voir les frontières entre Angleterre, Pays de Galles, Ecosse et Irlande.  
 Tandis qu'un level à 2 nous permettra de voir les provinces (ex: Aberdeenshire)
 
+
 ```{r class.source="watch-out", fig.align = 'center'}
-maCarte <- getData(name="GADM", country="GBR", level=1)
-plot(maCarte, main="Carte de la Grande Bretagne")
+maCarteGadm <- getData(name="GADM", country="GBR", level=0)
+plot(maCarteGadm, main="Carte GADM Level=0")
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+maCarteGadm <- getData(name="GADM", country="GBR", level=1)
+plot(maCarteGadm, main="Carte GADM Level=1")
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+maCarteGadm <- getData(name="GADM", country="GBR", level=2)
+plot(maCarteGadm, main="Carte GADM Level=2")
+```
+
+###### ATTRIBUTS DE LA CARTE
+
+```{r class.source="watch-out", fig.align = 'center'}
+names(maCarteGadm)
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+maCarteGadm$NAME_0
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+maCarteGadm$NAME_1
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+maCarteGadm$NAME_2
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+maCarteGadm$NAME_2[180]
+maCarteGadm$NAME_1[180]
+maCarteGadm$NAME_0[180]
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+maCarteGadmEcosse <- subset(maCarteGadm, NAME_1=="Scotland")
+plot(maCarteGadmEcosse, main="Ma Carte GADM de l'Ecosse")
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+maCarteGadmAberdeen <- subset(maCarteGadm, NAME_2=="Aberdeen")
+plot(maCarteGadmEcosse, main="Ma Carte GADM d'Aberdeen")
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+PdG <- maCarteGadm[maCarteGadm$NAME_1 %in% "Wales",]
+plot(PdG, main="Ma Carte GADM du Pays de Galles")
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+MaCarteCombiné <- bind(maCarteGadmEcosse, PdG)
+plot(MaCarteCombiné, main="Ma Carte Combiné")
 ```
 
 ##### CREATION DE LA CARTE TOPOGRAPHIQUE
@@ -144,7 +224,7 @@ Pour ajouter les points on utilise la fonction point de R, les 2 premiers argume
 Pour ajouter les textes, on utilise la fonction text de R, ici on utilise les mêmes coordonnées pour la longitude et latitude car on souhaite que le texte soit au dessus du point créé, *cex* c'est un facteur entre 0 et 1 de la taille finale des caractères, *pos* c'est ce qui nous permet de décaler le texte au desssus. Pour en savoir plus sur la fonction on peut consutler @Texte.
 
 ```{r class.source="watch-out", fig.align = 'center'}
-plot(maCarteCrop, main="Ma Carte Cropped")
+plot(maCarteCrop, main="Ma Carte avec 1 POI")
 plot(maCarte, add=TRUE)
 points(-2.1, 57.1, pch=21, col="black", bg="red")
 text(-2.1, 57.1, labels="Aberdeen", cex=1, pos=3)
@@ -153,7 +233,7 @@ text(-2.1, 57.1, labels="Aberdeen", cex=1, pos=3)
 A noter que l'on peut également ajouter plusieurs points en même temps à l'aide de **vecteurs**.
 
 ```{r class.source="watch-out", fig.align = 'center'}
-plot(maCarteCrop, main="Ma Carte Cropped")
+plot(maCarteCrop, main="Ma Carte avec plusieurs POI")
 plot(maCarte, add=TRUE)
 
 p.lon <- c(-2.1, -3.2)
