@@ -1,0 +1,415 @@
+---
+title: "Prédiction avec RandomForest"
+author: "Thomas MASSÉ"
+date: "18/12/2020"
+output:
+  html_document:
+    css: monStyle.css
+  pdf_document: default
+bibliography: biblio.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE, class.source="watch-out", paged.print=TRUE, results=FALSE}
+library(randomForest)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+#setwd("D:/R")
+```
+##### INTRODUCTION
+
+![](C:/Users/tmass/Pictures/pubg.jpg)
+
+![](C:/Users/tmass/Pictures/Slide1.png)
+
+Nous allons voir ensemble comment utiliser le package RandomForest en R.  
+Pour se faire on a souhaité réaliser le défi kaggle suivant : https://www.kaggle.com/c/pubg-finish-placement-prediction, il suffit de s'inscrire sur Kaggle pour
+pouvoir accéder aux jeux de données.
+
+Dans une première partie nous verrons ce que sont les fôrets d'arbres aléatoires, dans une seconde on parcourera ensemble les différentes données à notre disposition et pour finir on utilisera RandomForest sur tout ceci.
+
+##### LES FORETS D'ARBRES ALEATOIRES
+
+Avant de comprendre les fôrets d'arbres aléatoires, il faut comprendre ce qu'est un arbre décisionnel.  
+Un arbre décisionnel c'est tout simplement la représentation graphique sous forme d'arbres d'une suite de possibilités (ou de décisions).
+
+On apelle chaque point un noeud et les liens entre les noeuds des branches.
+
+
+Ce qui deviens intéressant c'est que l'on va pouvoir donner une probabilité à chaque décision.  
+On va donc pouvoir utiliser le machine learning pour bâtir un arbre de décisions en se basant sur des données existantes et en donnant à chaque combinaison une probabilité.
+
+Il y a 2 types d'arbres :
+
+Arbres de régression, quand la variable dépendante (celle que l'on souhaite prédire) est continue.  
+Arbres de classification, quand la variable dépendante est catégorielle. C'est ce que l'on utilisera dans notre exemple
+
+Une fôret d'arbres aléatoires, c'est donc la création d'arbres de décisions de manières aléatoires en utilisant des données, ensuite de nouvelles données vont parcourir tout les arbres de notre modèle qui votent pour la classe de sortie (grâce à une moyenne pour la régression, ou par vote pour une classification).
+
+J'ai essayé de vulgariser mais n'étant pas un expert je vous invite à consulter d'autres tutoriaux plus pointu sur ce sujet, si vous voulez plus entrez plus dans les détails.
+
+##### QU'EST CE QUE PUBG ?
+
+PUBG est l'abbréviation de PlayerUnknown's Battlegrounds.  
+C'est un jeu vidéo de type Battle Royale afin de mieux appréhender ce type de jeu vidéo si vous n'êtes pas familier je vous invite à consulter la vidéo suivante :
+![](https://www.youtube.com/watch?v=SXCMj-mgmM8)  
+Je vous invite également à consulter du contenu sur twitch pour parfaire votre connaissance, je recommande notamment le stream de MoMaN qui joue régulièrement et est plutôt aguérri au genre ou il a fait ses armes depuis H1 Z1 (pour les plus connaisseurs)
+
+##### EXPLICATIONS DES DONNEES
+
+![Collecte des données](C:/Users/tmass/Pictures/Slide2.png)
+
+Tout d'abord regardons les données que nous avons.
+
+D'après la description sur Kaggle, nous avons les données de plus de 65000 parties séparés en jeu d'entraînement et jeu de test.  
+Nous devons prédire les chances de victoires de chaque joueur en fonction des autres données.
+
+Il y a 3 fichiers :
+  - sample_submission_v2.csv : c'est l'exemple du format de soumission pour les concurrents qui ont réalisé le concours.  
+  - train_v2.csv : c'est notre jeu "d'entraînement", c'est ce modèle qui va nous permettre de créer notre modèle de fôret d'arbres aléatoires.  
+  - test_v2.csv : c'est le jeu de données qui va parcourir le modèle et ou l'on va chercher à prédire une variable.
+
+Nous allons donc lire les fichiers CSV
+```{r class.source="watch-out", fig.align = 'center'}
+#Lire le training set
+trainsetPUBG <- read.csv2("D:/Dataset/PUBG/train_V2.csv", 
+                   sep = ",", header = TRUE, fileEncoding = "utf-8")
+#Le mettre dans une dataframe
+trainsetPUBG <- as.data.frame(trainsetPUBG)
+#Afficher le nom des colonnes
+colnames(trainsetPUBG)
+#Lire le test set
+testsetPUBG <- read.csv2("D:/Dataset/PUBG/test_V2.csv", 
+                   sep = ",", header = TRUE, fileEncoding = "utf-8")
+#Le mettre dans une dataframe
+testsetPUBG <- as.data.frame(testsetPUBG)
+#Afficher le nom des colonnes
+colnames(testsetPUBG)
+```
+
+On voit bien qu'entre les 2 jeux de données nous avons les mêmes variables, moyennant bien sûr une seule, notre variable à prédire (winPlacePerc) qui est présente uniquement dans le jeu d'entraînement.
+
+##### Explication des variables
+
+**Id** = C'est l'identifiant unique du joueur  
+**groupId** = C'est l'identifiant du groupe du joueur, selon le type de partie nous pouvons jouer tout seul, à 2 ou à 4.  
+**matchId** = C'est l'identifiant unique du match  
+**assists** = Le nombre d'assistances, une assistance c'est quand l'on touche un autre joueur mais que c'est un autre joueur (ami ou ennemi) qui mets la dernière balle pour le finir.  
+**boosts** = Le nombres de **boosts** pris par le joueur. Les **boosts** sont des éléments qui permettent de se régénérer un petit peu de vie et de se déplacer plus vite.
+**damageDealt** = Le nombre de dégâts réalisé, 1 point de vie enlevé à un ennemi correspont à 1 point de dégat.  
+**DBNOs** = Le nombre d'ennemi que l'on a mis K.O, dans les parties en équipes avant de mourrir on a un état supplémentaire qui est K.O, les alliés ont alors quelques secondes pour réanimer leurs allié ou les ennemis pour le finir.  
+**headshotKills** = Le nombre de personne tués d'un tir dans la tête  
+**heals** = Le nombre de soins utilisés  
+**killPlace** = C'est le placement dans la partie du joueur d'un point de vue de **kills**  
+**killPoints** = Un peu comme un ELO (score aux echecs par exemple) d'un point de vue des **kills** uniquement  
+**kills** = Le nombre de personnes tués  
+**killStreaks** = Nombres de personnes tués lors d'un enchaînement (quelques secondes pour enchaîner)  
+**longestKill** = Distance en m, c'est la distance à laquelle un joueur à réalisé un kill du plus loin  
+**matchDuration** = Durée du match  
+**matchType** = Type du match, solo duo ou squad ainsi que la carte  
+**maxPlace** = Plus mauvais placement d'un joueur  
+**numGroups** = Nombre de groupes  
+**rankPoints** = Un peu comme un ELO d'un point de vue des points de classement uniquement.  
+**revives** = Nombres de fois ou on a relevé (de l'état de KO) des équipiers.  
+**rideDistance** = Distance (en m) parcouru en véhicule  
+**roadKills** = Nombres de personnes tués en véhicule  
+**swimDistance** = Distance (en m) parcouru à la nage  
+**teamKills** = Nombre d'alliers que le joueur à tué  
+**vehicleDestroys** = Nombre de véhicule détruit  
+**walkDistance** = Distance (en m) parcouru à pieds  
+**weaponsAcquired** = Nombre d'armes ramassés  
+**winPoints** = Un peu comme un ELO d'un point de vue des victoires uniquement  
+**winPlacePerc** = C'est le pourcentage de chance d'un joueur de remporter la partie, c'est également la variable que l'on cherche à prédire  
+
+##### Analyse et nettoyage des données
+
+![](C:/Users/tmass/Pictures/Slide3.png)
+
+```{r class.source="watch-out", fig.align = 'center'}
+summary(trainsetPUBG)
+```
+
+Première constatation il y a des colonnes qui sont en ***character*** alors qu'elles sont constitués de valeurs numérique :
+  - DamageDealt  
+  - longestKill  
+  - rideDistance  
+  - swimDistance  
+  - walkDistance  
+  - winPlacePerc  
+
+Nous allons donc transformer ces colonnes en valeurs numériques.
+
+```{r class.source="watch-out", fig.align = 'center'}
+trainsetPUBG$winPlacePerc <- as.numeric(trainsetPUBG$winPlacePerc)
+trainsetPUBG$damageDealt <- as.numeric(trainsetPUBG$damageDealt)
+trainsetPUBG$longestKill <- as.numeric(trainsetPUBG$longestKill)
+trainsetPUBG$rideDistance <- as.numeric(trainsetPUBG$rideDistance)
+trainsetPUBG$swimDistance <- as.numeric(trainsetPUBG$swimDistance)
+trainsetPUBG$walkDistance <- as.numeric(trainsetPUBG$walkDistance)
+```
+
+Afin que notre jeu de données soit le plus précis possible regardons de plus près chaque variable et essayons de detecter d'éventuelles problèmes ou tout simplement valeur que l'on souhaite regarder de plus près.  
+  - 53 **DBNOs** alors que la moyenne est de 0.6579  
+  - 64 **headshotKills** alors que la moyenne est de 0.2268  
+  - 80 **heals** alors que 3/4 des valeurs sont en dessous de 2  
+  - 101 **killPlace** alors que le maximum de joueurs est de 100, le maximum de killPlace devrait aussi être de 100. On regardera cette valeur de plus près pour essayer de voir si c'est un bug ou si il y a bien eu une partie à 101 joueurs.  
+  - 72 **kills** quand la moyenne est égale à 0.9248  
+  - 20 **killStreaks**, de ma connaissance du jeu il me parait impossible de réaliser un enchaînement de 20 joueurs la aussi on va regarder de plus près pour voir si on detecte une anomalie.  
+  - 39 **revives** pour une moyenne de 0.1647  
+  - 40710 **rideDistance** pour une moyenne de 606.12, de plus la aussi la zone se réduisant tout de même rapidement il me paraît difficile de parcourir 40km sans avoir croisé un alpha.  
+  - 18 **roadKills** pour une moyenne de 0.003496, également ici il me paraît difficile d'écraser 18 joueurs sans tomber sur plus fort ou plus malin que soi.  
+  - 25780 **walkDistance** comme pour la rideDistance 25.7 km a pieds semble beaucoup trop. Surtout le comportement d'un bon joueur même si très mobile reste de très bien se placer et de profiter de placement avantageux pour prendre le dessus sur ces adversaires.  
+  - 236 **weaponsAcquired**, la encore comment ramasser 236 armes en une seule partie?  
+  - **winPlacePerc**, une valeur N/A dans la colonne winPlacePerc n'est pas souhaitable, nous allons donc supprimer cette ligne de la dataframe.  
+  
+Certaines des valeurs plus haut mène à réflexion, afin de pouvoir mieux visualiser si ce sont des valeurs vraiment extrême (liès à des cheateurs par exemple) ou si ce sont juste des très bon joueurs.
+
+Pour cela on va imprimer les graphes de ses variables afin de mieux le visualiser.
+
+```{r class.source="watch-out", fig.align = 'center', results=FALSE}
+#plot(trainsetPUBG$DBNOs)
+#plot(trainsetPUBG$headshotKills)
+#plot(trainsetPUBG$heals)
+#plot(trainsetPUBG$kills)
+#plot(trainsetPUBG$killStreaks)
+#plot(trainsetPUBG$rideDistance)
+#plot(trainsetPUBG$roadKills)
+#plot(trainsetPUBG$walkDistance)
+#plot(trainsetPUBG$weaponsAcquired)
+```
+
+Avec un graphique rapide bien que sommaire on voit très bien la distribution, la valeur max de 53 paraît encore plus étonnant, on va étudier ça de plus près.  
+Tout d'abord en regardant les lignes de la dataframe pour lequel le **DBNOs** est supérieur à 40.
+
+```{r class.source="watch-out", fig.align = 'center'}
+DBNOs = trainsetPUBG[trainsetPUBG$DBNOs > 40, ] 
+print(DBNOs)
+```
+
+La encore en regardant la ligne dans son ensemble, ç'est étrange le joueur **f83f0bfaafb7d8** à réaliser 55 **kills** en parcourant seulement 12.19m.
+
+Intéressant nous maintenant aux **headshotKills**, regardons également les valeurs au dessus de 40 pour voir si on a à faire à d'excellent joueur ou des tricheurs.
+
+```{r class.source="watch-out", fig.align = 'center'}
+HSKills = trainsetPUBG[trainsetPUBG$headshotKills > 40, ] 
+print(HSKills)
+```
+
+Sans surprise on retrouve notre ami **f83f0bfaafb7d8** mais ce n'est pas lui qui à le plus de **headshotKills**.  
+Difficile de trancher ici, il est possible que ces 3 joueurs ne soit pas des tricheurs.
+
+Jettons un coup d'oeil aux autres valeurs maximum étrange en utilisant la même méthode
+
+
+```{r class.source="watch-out", fig.align = 'center'}
+heals = trainsetPUBG[trainsetPUBG$heals > 60, ] 
+print(heals)
+kills = trainsetPUBG[trainsetPUBG$kills > 60, ] 
+print(kills)
+killstreak = trainsetPUBG[trainsetPUBG$killStreaks > 15, ] 
+print(killstreak)
+rideD = trainsetPUBG[trainsetPUBG$rideDistance > 30000, ] 
+print(rideD)
+roadK = trainsetPUBG[trainsetPUBG$roadKills > 10, ] 
+print(roadK)
+walkD = trainsetPUBG[trainsetPUBG$walkDistance > 15000, ] 
+print(walkD)
+wA = trainsetPUBG[trainsetPUBG$weaponsAcquired > 150, ] 
+print(wA)
+```
+
+Difficile de trancher mais tout paraît bien legitime.  
+On va juste supprimer la ligne de notre ami tricheur et la ligne avec la valeur **N/A**.
+
+```{r class.source="watch-out", fig.align = 'center'}
+#Nombres de lignes dans la DataFrame
+nrow(trainsetPUBG)
+trainsetPUBG <- subset(trainsetPUBG, Id!="f83f0bfaafb7d8")
+#Nombres de lignes dans la DataFrame
+nrow(trainsetPUBG)
+trainsetPUBG <- trainsetPUBG[!is.na(trainsetPUBG$winPlacePerc),]
+#Nombres de lignes dans la DataFrame
+nrow(trainsetPUBG)
+```
+Tout s'est bien déroulé on a bien supprimer seulement les 2 lignes qu'on souhaitait.
+
+##### Un peu de features engineering
+
+![](C:/Users/tmass/Pictures/Slide4.png)
+
+Ici nous allons le faire plus dans un soucis de réduire le nombres de variables que dans un réel soucis d'éfficacité, mais on va au maximum essayer de faire les 2.  
+Il y a pas mal de variables rédondantes, on va donc créer une colonne **distanceParcouru** qui sera la distance totale parcouru par le joueur.  
+On va également créer une colonne **healsBoosts** qui sera la somme de ces 2 consommables.  
+Les tirs à la tête nécessitant beaucoup plus de skills que les **kills** classique on va rajouter cette colonne, on ne supprimera pas les colonnes car on veux quand même pouvoir étudier les **kills** et **headshotKills** indépendament.
+
+```{r class.source="watch-out", fig.align = 'center'}
+trainsetPUBG$DistanceParcouru = trainsetPUBG$rideDistance + trainsetPUBG$swimDistance + trainsetPUBG$walkDistance
+trainsetPUBG$healsBoosts = trainsetPUBG$heals + trainsetPUBG$boosts
+trainsetPUBG$HSratio = trainsetPUBG$headshotKills / trainsetPUBG$kills
+trainsetPUBG$GlobalPoints = trainsetPUBG$winPoints + trainsetPUBG$killPoints + trainsetPUBG$rankPoints
+trainsetPUBG$KDA = trainsetPUBG$kills + trainsetPUBG$assists/3
+#suppression des colonnes désormais inutile
+trainsetPUBG = trainsetPUBG[, !(colnames(trainsetPUBG) %in% c("rideDistance","swimDistance","walkDistance","heals","boosts","Id","groupId","matchId","kills","assists","winPoints","killPoints","rankPoints"))]
+trainsetPUBG[is.na(trainsetPUBG)] <- 0
+head(trainsetPUBG, 10)
+```
+
+Nous allons séparer le jeu de données en 3, en effet je pense que le jeux en solo ou en groupes (duo et squad) est différent, on va donc essayer de séparer nos jeux de données en 3 un pour la solo, un pour le duo et un pour les groupes.
+
+```{r class.source="watch-out", fig.align = 'center'}
+vSolo <- c('flarefpp','flaretpp','crashfpp','crashtpp','normal-solo','normal-solo-fpp','solo-fpp')
+trainsetSolo <- filter(trainsetPUBG, matchType %in% vSolo)
+vDuo <- c('duo-fpp','normal-duo','normal-duo-fpp')
+trainsetDuo <- filter(trainsetPUBG, matchType %in% vDuo)
+vSquad <- c('normal-squad','normal-squad-fpp','squad-fpp')
+trainsetSquad <- filter(trainsetPUBG, matchType %in% vSquad)
+nrow(trainsetSolo)
+nrow(trainsetDuo)
+nrow(trainsetSquad)
+```
+
+Tout s'est bien déroulé, il y a des variables que l'on utilisera pas pour les joueurs solo.
+**groupId**
+**DBNOs**
+**matchType**
+**numGroups**
+**revives**
+**teamKills**
+
+```{r class.source="watch-out", fig.align = 'center'}
+trainsetSolo = trainsetSolo[, !(colnames(trainsetSolo) %in% c("groupId","DBNOs","matchType","numGroups","revives","teamKills"))]
+head(trainsetSolo, 10)
+```
+
+##### Cross Validation et entraînement du modèle
+
+![](C:/Users/tmass/Pictures/Slide5.png)
+
+Comme expliqué dans la documentation officielle de Breiman, avec randomForest il n'y a pas besoin de cross-validation ou de test séparé pour un avoir une estimation des erreurs dans le jeu de test.  
+Pour se faire une idée nous avons l'OOB error estimate.  
+Vous pouvez retrouver l'explication complète ici https://www.stat.berkeley.edu/%7Ebreiman/RandomForests/cc_home.htm#ooberr
+
+Passons donc à l'étape d'entraînement du modèle, pour commencer on va le faire avec les 10000 premières lignes pour que les temps de calculs soit convenable et en utilisant les paramètres par défaut.
+
+```{r class.source="watch-out", fig.align = 'center'}
+#Entraînement du modèle
+system.time({
+set.seed(123)
+
+solo <- randomForest(winPlacePerc ~ ., data = head(trainsetSolo, 10000), na.action = na.omit, importance=T, keep.inbag = T)})
+solo
+```
+
+**Number of trees** c'est le nombre d'arbres que l'algorithme construit, ici avec la valeur par défaut 500, on peut le modifier dans randomForest en utilisant l'argument ntree.  
+**No. of variables tried** at each split c'est le nombres de variables utilisés à chaque séparation dans notre cas 7. A noter que par défaut la valeur est égale à la racine carré du nombres de prédicteurs. On peut le modifier dans randomForest en utilisant l'argument mtry.  
+**Mean of squared residuals** nous permet d'évaluer les cas que le modèle ne peut pas expliquer, c'est la somme des différences au carré entre la valeur à prédire et la valeur prédite. Plus cette valeur est basse plus le modèle de prédiction colle à la donnée, une valeur de 0 correspond à un modèle qui colle exactement à la donnée (overfiting). 0.005133088.  
+**%Var explained**: 94.12
+
+Maintenant nous pouvons voir quelles variables ont le plus d'importance dans notre prédiction.
+
+```{r class.source="watch-out", fig.align = 'center'}
+varImpPlot(solo)
+```
+
+Ce qu'il faut interpréter ici c'est que plus une valeur est en haut de la liste plus elle est importante pour la prediction.  
+La variable la plus importante semble être la DistanceParcouru, et c'est logique étant donné les compétences nécessaires pour le jeu.
+
+Essayons maintenant de voir si on peut améliorer légérement tout ça en optimisant quelques valeurs comme le mtry et le ntree en utilisant la commande tuneRF.
+
+Tout d'abord traçons le MSE (mean of squared residuals) en fonction du ntree, afin de trouver la valeur optimale pour le nombre d'arbres.
+
+```{r class.source="watch-out", fig.align = 'center'}
+plot(solo$mse, type = "l", xlab = "nombre d'arbres", ylab = "MSE")
+```
+
+On voit que ça semble ce stabiliser vers 300. On va donc utiliser cette valeur pour ntreeTry.  
+Pour **mtryStart** nous allons rester sur 5. improve, c'est de combien l'OOB error (dans notre cas le **MSE**) doit s'améliorer pour continuer, on va partir ici avec 0.001 car notre **MSE** est de 0.005133088
+
+```{r class.source="watch-out", fig.align = 'center'}
+soloPredictors <- trainsetSolo[, !(colnames(trainsetSolo) %in% c("winPlacePerc"))]
+tuneRFtest <- tuneRF(head(soloPredictors, 10000), head(trainsetSolo$winPlacePerc, 10000), mtryStart=5, ntreeTry=300, stepFactor=2, improve=0.001,
+       trace=TRUE, plot=TRUE, doBest=FALSE)
+```
+
+Le **mtry** optimal semble être 10.  
+Relançons notre modèle d'entraînement avec ses paramètres.
+
+```{r class.source="watch-out", fig.align = 'center'}
+#Entraînement du modèle
+system.time({
+set.seed(123)
+
+solo <- randomForest(winPlacePerc ~ ., data = head(trainsetSolo, 10000), na.action = na.omit, importance=T, mtry=10, ntree=300)})
+solo
+```
+
+C'est un tout petit peu mieux.
+
+##### Prédiction
+
+![](C:/Users/tmass/Pictures/Slide6.PNG)
+
+On va maintenant passer à la prédiction, on doit tout d'abord appliquer les mêmes modifications sur les variables dans le testSet et sortir les parties solo.
+
+```{r class.source="watch-out", fig.align = 'center'}
+#Ici on veut pouvoir retrouver le joueur donc on passe la colonne Id comme index des lignes.
+rownames(testsetPUBG) <- testsetPUBG$Id
+head(testsetPUBG, 10)
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+#Transformer les colonnes character en valeurs numériques
+testsetPUBG$damageDealt <- as.numeric(testsetPUBG$damageDealt)
+testsetPUBG$longestKill <- as.numeric(testsetPUBG$longestKill)
+testsetPUBG$rideDistance <- as.numeric(testsetPUBG$rideDistance)
+testsetPUBG$swimDistance <- as.numeric(testsetPUBG$swimDistance)
+testsetPUBG$walkDistance <- as.numeric(testsetPUBG$walkDistance)
+#Features Engineering
+testsetPUBG$DistanceParcouru = testsetPUBG$rideDistance + testsetPUBG$swimDistance + testsetPUBG$walkDistance
+testsetPUBG$healsBoosts = testsetPUBG$heals + testsetPUBG$boosts
+testsetPUBG$HSratio = testsetPUBG$headshotKills / testsetPUBG$kills
+testsetPUBG$GlobalPoints = testsetPUBG$winPoints + testsetPUBG$killPoints + testsetPUBG$rankPoints
+testsetPUBG$KDA = testsetPUBG$kills + testsetPUBG$assists/3
+#suppression des colonnes désormais inutile
+testsetPUBG = testsetPUBG[, !(colnames(testsetPUBG) %in% c("rideDistance","swimDistance","walkDistance","heals","boosts","Id","groupId","matchId","kills","assists","winPoints","killPoints","rankPoints"))]
+testsetPUBG[is.na(testsetPUBG)] <- 0
+#Récupération des games en solo
+vSolo <- c('flarefpp','flaretpp','crashfpp','crashtpp','normal-solo','normal-solo-fpp','solo-fpp')
+testsetSolo <- filter(testsetPUBG, matchType %in% vSolo)
+vDuo <- c('duo-fpp','normal-duo','normal-duo-fpp')
+testsetDuo <- filter(testsetPUBG, matchType %in% vDuo)
+vSquad <- c('normal-squad','normal-squad-fpp','squad-fpp')
+testsetSquad <- filter(testsetPUBG, matchType %in% vSquad)
+nrow(testsetSolo)
+nrow(testsetDuo)
+nrow(testsetSquad)
+#Suppression des dernières colonnes inutile
+testsetSolo = testsetSolo[, !(colnames(testsetSolo) %in% c("groupId","DBNOs","matchType","numGroups","revives","teamKills"))]
+```
+
+On va lancer la prédiction de notre variable winPlacePerc dans le testsetSolo (pour les joueurs jouant en solo).
+
+```{r class.source="watch-out", fig.align = 'center'}
+predictionSolo <- predict(solo, testsetSolo)
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+testsetSolo$winPlacePerc <- predictionSolo
+summary(testsetSolo)
+head(testsetSolo, 10)
+```
+
+Si on prend par exemple le joueur **2f70df5da78353** qui a de bonnes chances de bien finir dans sa partie avec un **winPlacePerc** de 0.882668153 on voit que sur les variables les plus importante il a de bonnes statistiques avec une **DistanceParcouru** de 4810, 4 **armes ramassés**, et une **killPlace** de 20 la ou pour le joueur **494d3d9fad73b2** ça sera plus compliqué avec une **DistanceParcouru** de 82.1100 et une **killPlace** de 87 qui nous indique sûrement que le joueur est mort tôt.
+
+Sans être exceptionnelle notre modèle à l'air de se comporter correctement avec des résultats attendu.  
+Un bon moyen d'améliorer un peu les performances seraient d'utiliser plus de données.  
+Afin de pouvoir comparer l'impact de la quantité de données j'essairai si possible de mettre les résultat obtenu sur la totalité du dataset et des modes de jeu dans une parties à la fin.
+
+##### REFERENCES
+http://mehdikhaneboubi.free.fr/random_forest_r.html
+https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/rfcv
+https://www.stat.berkeley.edu/%7Ebreiman/RandomForests/cc_home.htm#ooberr
