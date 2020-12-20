@@ -56,7 +56,9 @@ J'ai essayé de vulgariser mais n'étant pas un expert je vous invite à consult
 
 PUBG est l'abbréviation de PlayerUnknown's Battlegrounds.  
 C'est un jeu vidéo de type Battle Royale afin de mieux appréhender ce type de jeu vidéo si vous n'êtes pas familier je vous invite à consulter la vidéo suivante :
-![](https://www.youtube.com/watch?v=SXCMj-mgmM8)  
+
+![](https://www.youtube.com/watch?v=SXCMj-mgmM8)
+
 Je vous invite également à consulter du contenu sur twitch pour parfaire votre connaissance, je recommande notamment le stream de MoMaN qui joue régulièrement et est plutôt aguérri au genre ou il a fait ses armes depuis H1 Z1 (pour les plus connaisseurs)
 
 ##### EXPLICATIONS DES DONNEES
@@ -171,19 +173,36 @@ Certaines des valeurs plus haut mène à réflexion, afin de pouvoir mieux visua
 Pour cela on va imprimer les graphes de ses variables afin de mieux le visualiser.
 
 ```{r class.source="watch-out", fig.align = 'center', results=FALSE}
-#plot(trainsetPUBG$DBNOs)
+distributionDBNOs <- count(trainsetPUBG, vars=DBNOs)
+plot(distributionDBNOs, type="b", col="red", main="Distribution DBNOs", xlab="DBNOs", ylab="Nombre")
 #plot(trainsetPUBG$headshotKills)
+distributionHS <- count(trainsetPUBG, vars=headshotKills)
+plot(distributionHS, type="b", col="blue", main="Distribution HeadshotKills", xlab="headshotKills", ylab="Nombre")
 #plot(trainsetPUBG$heals)
+distributionHeals <- count(trainsetPUBG, vars=heals)
+plot(distributionHeals, type="b", col="green", main="Distribution heals", xlab="heals", ylab="Nombre")
 #plot(trainsetPUBG$kills)
+distributionKills <- count(trainsetPUBG, vars=kills)
+plot(distributionKills, type="b", col="yellow", main="Distribution kills", xlab="kills", ylab="Nombre")
 #plot(trainsetPUBG$killStreaks)
+distributionkillStreaks <- count(trainsetPUBG, vars=killStreaks)
+plot(distributionkillStreaks, type="b", col="brown", main="Distribution killStreaks", xlab="killStreaks", ylab="Nombre")
 #plot(trainsetPUBG$rideDistance)
+distributionRideDistance <- count(trainsetPUBG, vars=rideDistance)
+plot(distributionRideDistance, type="b", col="purple", main="Distribution rideDistance", xlab="rideDistance", ylab="Nombre")
 #plot(trainsetPUBG$roadKills)
+distributionRoadKills <- count(trainsetPUBG, vars=roadKills)
+plot(distributionRoadKills, type="b", col="pink", main="Distribution roadKills", xlab="roadKills", ylab="Nombre")
 #plot(trainsetPUBG$walkDistance)
+distributionWalkDistance <- count(trainsetPUBG, vars=walkDistance)
+plot(distributionWalkDistance, type="b", col="black", main="Distribution walkDistance", xlab="walkDistance", ylab="Nombre")
 #plot(trainsetPUBG$weaponsAcquired)
+distributionWeaponsAcquired <- count(trainsetPUBG, vars=weaponsAcquired)
+plot(distributionWeaponsAcquired, type="b", col="green", main="Distribution weaponsAcquired", xlab="weaponsAcquired", ylab="Nombre")
 ```
 
 Avec un graphique rapide bien que sommaire on voit très bien la distribution, la valeur max de 53 paraît encore plus étonnant, on va étudier ça de plus près.  
-Tout d'abord en regardant les lignes de la dataframe pour lequel le **DBNOs** est supérieur à 40.
+Tout d'abord en regardant les lignes de la dataframe pour lequel le **DBNOs** est supérieur à 40.  
 
 ```{r class.source="watch-out", fig.align = 'center'}
 DBNOs = trainsetPUBG[trainsetPUBG$DBNOs > 40, ] 
@@ -251,9 +270,9 @@ trainsetPUBG$DistanceParcouru = trainsetPUBG$rideDistance + trainsetPUBG$swimDis
 trainsetPUBG$healsBoosts = trainsetPUBG$heals + trainsetPUBG$boosts
 trainsetPUBG$HSratio = trainsetPUBG$headshotKills / trainsetPUBG$kills
 trainsetPUBG$GlobalPoints = trainsetPUBG$winPoints + trainsetPUBG$killPoints + trainsetPUBG$rankPoints
-trainsetPUBG$KDA = trainsetPUBG$kills + trainsetPUBG$assists/3
+trainsetPUBG$KDA = trainsetPUBG$kills + trainsetPUBG$assists/3 + trainsetPUBG$roadKills
 #suppression des colonnes désormais inutile
-trainsetPUBG = trainsetPUBG[, !(colnames(trainsetPUBG) %in% c("rideDistance","swimDistance","walkDistance","heals","boosts","Id","groupId","matchId","kills","assists","winPoints","killPoints","rankPoints"))]
+trainsetPUBG = trainsetPUBG[, !(colnames(trainsetPUBG) %in% c("rideDistance","swimDistance","walkDistance","heals","boosts","Id","groupId","matchId","assists","winPoints","killPoints","rankPoints","roadKills"))]
 trainsetPUBG[is.na(trainsetPUBG)] <- 0
 head(trainsetPUBG, 10)
 ```
@@ -300,14 +319,14 @@ Passons donc à l'étape d'entraînement du modèle, pour commencer on va le fai
 system.time({
 set.seed(123)
 
-solo <- randomForest(winPlacePerc ~ ., data = head(trainsetSolo, 10000), na.action = na.omit, importance=T, keep.inbag = T)})
+solo <- randomForest(winPlacePerc ~ ., data = head(trainsetSolo, 10000), na.action = na.omit, importance=T)})
 solo
 ```
 
 **Number of trees** c'est le nombre d'arbres que l'algorithme construit, ici avec la valeur par défaut 500, on peut le modifier dans randomForest en utilisant l'argument ntree.  
-**No. of variables tried** at each split c'est le nombres de variables utilisés à chaque séparation dans notre cas 7. A noter que par défaut la valeur est égale à la racine carré du nombres de prédicteurs. On peut le modifier dans randomForest en utilisant l'argument mtry.  
-**Mean of squared residuals** nous permet d'évaluer les cas que le modèle ne peut pas expliquer, c'est la somme des différences au carré entre la valeur à prédire et la valeur prédite. Plus cette valeur est basse plus le modèle de prédiction colle à la donnée, une valeur de 0 correspond à un modèle qui colle exactement à la donnée (overfiting). 0.005133088.  
-**%Var explained**: 94.12
+**No. of variables tried** at each split c'est le nombres de variables utilisés à chaque séparation dans notre cas 5. A noter que par défaut la valeur est égale à la racine carré du nombres de prédicteurs. On peut le modifier dans randomForest en utilisant l'argument mtry.  
+**Mean of squared residuals** nous permet d'évaluer les cas que le modèle ne peut pas expliquer, c'est la somme des différences au carré entre la valeur à prédire et la valeur prédite. Plus cette valeur est basse plus le modèle de prédiction colle à la donnée, une valeur de 0 correspond à un modèle qui colle exactement à la donnée (overfiting). 0.005040281.  
+**%Var explained**: 94.23
 
 Maintenant nous pouvons voir quelles variables ont le plus d'importance dans notre prédiction.
 
@@ -326,16 +345,17 @@ Tout d'abord traçons le MSE (mean of squared residuals) en fonction du ntree, a
 plot(solo$mse, type = "l", xlab = "nombre d'arbres", ylab = "MSE")
 ```
 
-On voit que ça semble ce stabiliser vers 300. On va donc utiliser cette valeur pour ntreeTry.  
-Pour **mtryStart** nous allons rester sur 5. improve, c'est de combien l'OOB error (dans notre cas le **MSE**) doit s'améliorer pour continuer, on va partir ici avec 0.001 car notre **MSE** est de 0.005133088
+On voit que ça semble ce stabiliser vers 200. On va donc utiliser cette valeur pour ntreeTry.  
+Pour **mtryStart** (valeur de mtry a utiliser pour commencer) nous allons rester sur 7. improve, c'est de combien l'OOB error (dans notre cas le **MSE**) doit s'améliorer pour continuer, on va partir ici avec 0.001 car notre **MSE** est de 0.004903861. StepFactor c'est par combien la valeur de mtry doit augmenter ou baisser à chaque test.
+La fonction va commencer par tester avec la valeur de mtryStart, puis par mtryStart/stepFactor si l'amélioration est significative on continue à diviser mtry par stepFactor, sinon on repart de mtryStart et la fonction test dans l'autre sens en multipliant mtryStart par stepFactor etc...
 
 ```{r class.source="watch-out", fig.align = 'center'}
 soloPredictors <- trainsetSolo[, !(colnames(trainsetSolo) %in% c("winPlacePerc"))]
-tuneRFtest <- tuneRF(head(soloPredictors, 10000), head(trainsetSolo$winPlacePerc, 10000), mtryStart=5, ntreeTry=300, stepFactor=2, improve=0.001,
+tuneRFtest <- tuneRF(head(soloPredictors, 10000), head(trainsetSolo$winPlacePerc, 10000), mtryStart=5, ntreeTry=200, stepFactor=1.5, improve=0.001,
        trace=TRUE, plot=TRUE, doBest=FALSE)
 ```
 
-Le **mtry** optimal semble être 10.  
+Le **mtry** optimal semble être 7.  
 Relançons notre modèle d'entraînement avec ses paramètres.
 
 ```{r class.source="watch-out", fig.align = 'center'}
@@ -343,11 +363,16 @@ Relançons notre modèle d'entraînement avec ses paramètres.
 system.time({
 set.seed(123)
 
-solo <- randomForest(winPlacePerc ~ ., data = head(trainsetSolo, 10000), na.action = na.omit, importance=T, mtry=10, ntree=300)})
+solo <- randomForest(winPlacePerc ~ ., data = head(trainsetSolo, 10000), na.action = na.omit, importance=T, mtry=7, ntree=200)})
 solo
 ```
 
-C'est un tout petit peu mieux.
+C'est un tout petit peu mieux.  
+A noter qu'il existe plusieurs moyens d'améliorer un modèle en Random Forest :  
+ - Utiliser plus de données, ici on a utiliser que les 10 000 premières lignes si on utiliser la totalité du dataset les résultats seraient meilleurs.
+ - Le features engineering
+ - Améliorer le mtry
+ - Améliorer le ntree
 
 ##### Prédiction
 
@@ -375,7 +400,7 @@ testsetPUBG$HSratio = testsetPUBG$headshotKills / testsetPUBG$kills
 testsetPUBG$GlobalPoints = testsetPUBG$winPoints + testsetPUBG$killPoints + testsetPUBG$rankPoints
 testsetPUBG$KDA = testsetPUBG$kills + testsetPUBG$assists/3
 #suppression des colonnes désormais inutile
-testsetPUBG = testsetPUBG[, !(colnames(testsetPUBG) %in% c("rideDistance","swimDistance","walkDistance","heals","boosts","Id","groupId","matchId","kills","assists","winPoints","killPoints","rankPoints"))]
+testsetPUBG = testsetPUBG[, !(colnames(testsetPUBG) %in% c("rideDistance","swimDistance","walkDistance","heals","boosts","Id","groupId","matchId","assists","winPoints","killPoints","rankPoints"))]
 testsetPUBG[is.na(testsetPUBG)] <- 0
 #Récupération des games en solo
 vSolo <- c('flarefpp','flaretpp','crashfpp','crashtpp','normal-solo','normal-solo-fpp','solo-fpp')
@@ -389,6 +414,8 @@ nrow(testsetDuo)
 nrow(testsetSquad)
 #Suppression des dernières colonnes inutile
 testsetSolo = testsetSolo[, !(colnames(testsetSolo) %in% c("groupId","DBNOs","matchType","numGroups","revives","teamKills"))]
+testsetDuo = testsetDuo[, !(colnames(testsetDuo) %in% c("groupId","matchType","numGroups"))]
+testsetSquad = testsetSquad[, !(colnames(testsetSquad) %in% c("groupId","matchType","numGroups"))]
 ```
 
 On va lancer la prédiction de notre variable winPlacePerc dans le testsetSolo (pour les joueurs jouant en solo).
@@ -403,13 +430,104 @@ summary(testsetSolo)
 head(testsetSolo, 10)
 ```
 
-Si on prend par exemple le joueur **2f70df5da78353** qui a de bonnes chances de bien finir dans sa partie avec un **winPlacePerc** de 0.882668153 on voit que sur les variables les plus importante il a de bonnes statistiques avec une **DistanceParcouru** de 4810, 4 **armes ramassés**, et une **killPlace** de 20 la ou pour le joueur **494d3d9fad73b2** ça sera plus compliqué avec une **DistanceParcouru** de 82.1100 et une **killPlace** de 87 qui nous indique sûrement que le joueur est mort tôt.
+Si on prend par exemple le joueur **2f70df5da78353** qui a de bonnes chances de bien finir dans sa partie avec un **winPlacePerc** de 0.88 on voit que sur les variables les plus importante il a de bonnes statistiques avec une **DistanceParcouru** de 4810, 4 **armes ramassés**, et une **killPlace** de 20 la ou pour le joueur **494d3d9fad73b2** ça sera plus compliqué avec une **DistanceParcouru** de 82.1100 et une **killPlace** de 87 qui nous indique très certainement que le joueur est mort tôt.
 
-Sans être exceptionnelle notre modèle à l'air de se comporter correctement avec des résultats attendu.  
+Sans être exceptionnel notre modèle à l'air de se comporter correctement en vue des résultats.  
 Un bon moyen d'améliorer un peu les performances seraient d'utiliser plus de données.  
-Afin de pouvoir comparer l'impact de la quantité de données j'essairai si possible de mettre les résultat obtenu sur la totalité du dataset et des modes de jeu dans une parties à la fin.
+Afin de pouvoir comparer l'impact de la quantité de données j'essairai si possible de mettre les résultat obtenu sur une plus grande partie du dataset.
+
+##### Répéter les mêmes étapes pour le dataset duo et le dataset squad.
+
+![](C:/Users/tmass/Pictures/Slide5.png)
+
+```{r class.source="watch-out", fig.align = 'center'}
+#Nettoyage des dataframes, ce coup ci on garde les colonnes revives, teamKills, et DBNOs.
+trainsetDuo = trainsetDuo[, !(colnames(trainsetDuo) %in% c("groupId","matchType","numGroups"))]
+head(trainsetDuo, 10)
+trainsetSquad = trainsetSquad[, !(colnames(trainsetSquad) %in% c("groupId","matchType","numGroups"))]
+head(trainsetSquad, 10)
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+#Entraînement du modèle
+system.time({
+set.seed(123)
+
+duo <- randomForest(winPlacePerc ~ ., data = head(trainsetDuo, 10000), na.action = na.omit, importance=T)})
+duo
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+#Impression de l'importance des variables
+varImpPlot(duo)
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+#Vérification du ntree optimal
+plot(duo$mse, type = "l", xlab = "nombre d'arbres", ylab = "MSE")
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+#Vérification du mtry optimal
+duoPredictors <- trainsetDuo[, !(colnames(trainsetDuo) %in% c("winPlacePerc"))]
+tuneRFtest <- tuneRF(head(duoPredictors, 10000), head(trainsetDuo$winPlacePerc, 10000), mtryStart=6, ntreeTry=250, stepFactor=1.5, improve=0.001,
+       trace=TRUE, plot=TRUE, doBest=FALSE)
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+#Entraînement du modèle duo
+system.time({
+set.seed(123)
+
+duo <- randomForest(winPlacePerc ~ ., data = head(trainsetDuo, 10000), na.action = na.omit, importance=T, mtry=9, ntree=250)})
+duo
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+#Entraînement du modèle squad
+system.time({
+set.seed(123)
+
+squad <- randomForest(winPlacePerc ~ ., data = head(trainsetSquad, 10000), na.action = na.omit, importance=T, mtry=9, ntree=250)})
+squad
+```
+
+![](C:/Users/tmass/Pictures/Slide6.png)
+
+```{r class.source="watch-out", fig.align = 'center'}
+predictionDuo <- predict(duo, testsetDuo)
+predictionSquad <- predict(squad, testsetSquad)
+```
+
+```{r class.source="watch-out", fig.align = 'center'}
+testsetDuo$winPlacePerc <- predictionDuo
+head(testsetDuo, 10)
+testsetSquad$winPlacePerc <- predictionSquad
+head(testsetSquad, 10)
+```
+
+##### Compilation des résultats
+```{r}
+testsetSolo$Id <- rownames(testsetSolo)
+testsetDuo$Id <- rownames(testsetDuo)
+testsetSquad$Id <- rownames(testsetSquad)
+
+resultSolo <- testsetSolo[, (colnames(testsetSolo) %in% c("Id","winPlacePerc"))]
+resultDuo <- testsetDuo[, (colnames(testsetDuo) %in% c("Id","winPlacePerc"))]
+resultSquad <- testsetSquad[, (colnames(testsetSquad) %in% c("Id","winPlacePerc"))]
+
+results <- bind_rows(resultSolo, resultDuo)
+results <- bind_rows(results, resultSquad)
+
+rownames(results) <- NULL
+results <- results[, c(2,1)]
+
+head(results, 10)
+write.csv(x = results, file = "PredictionPUBGResults.csv")
+```
+
 
 ##### REFERENCES
 http://mehdikhaneboubi.free.fr/random_forest_r.html
 https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/rfcv
-https://www.stat.berkeley.edu/%7Ebreiman/RandomForests/cc_home.htm#ooberr
+https://www.stat.berkeley.edu/%7Ebreiman/RandomForests/cc_home.html
